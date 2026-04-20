@@ -1,7 +1,7 @@
 "use client"
 
 import { motion, AnimatePresence } from "framer-motion"
-import { X, Save, FolderOpen, Trash2, Heart, Clock } from "lucide-react"
+import { X, Save, FolderOpen, Trash2, Heart, Clock, Sparkle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import type { SaveData } from "@/lib/story-config"
 
@@ -123,6 +123,10 @@ export function SaveLoadModal({
                             <span className="flex items-center gap-1">
                               <Heart className="w-3 h-3 text-primary fill-primary" />
                               {save.affection}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Sparkle className="w-3 h-3 text-amber-400 fill-amber-400/50" />
+                              {save.sincerity}
                             </span>
                             <span className="flex items-center gap-1">
                               <Clock className="w-3 h-3" />

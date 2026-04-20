@@ -1,19 +1,38 @@
 "use client"
 
 import { useState, useCallback, useEffect } from "react"
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 import { DialogueBox } from "@/components/dialogue-box"
 import { GameMenu } from "@/components/game-menu"
-import { AffectionBar } from "@/components/affection-bar"
+import { AffectionBar, SincerityBar } from "@/components/affection-bar"
 import { ChoiceButtons } from "@/components/choice-buttons"
 import { AffectionPopup } from "@/components/affection-popup"
 import { SaveLoadModal } from "@/components/save-load-modal"
+import { WeatherEffects } from "@/components/weather-effects"
 import { Heart, Sparkles } from "lucide-react"
-import { storyScenes, getChapterName, type SaveData } from "@/lib/story-config"
+import { 
+  storyScenes, 
+  getChapterName, 
+  getActName,
+  moodThemes,
+  type SaveData 
+} from "@/lib/story-config"
+
+// 根据场景获取背景图片
+const getBackgroundImage = (sceneId: number, background: string) => {
+  // 根据场景背景选择对应图片
+  if (background.includes("便利店")) return "/images/convenience-store.jpg"
+  if (background.includes("公寓") || background.includes("暴雨")) return "/images/rainy-apartment.jpg"
+  if (background.includes("墓园") || background.includes("墓")) return "/images/cemetery.jpg"
+  if (background.includes("医院")) return "/images/rainy-apartment.jpg"
+  // 默认樱花背景
+  return "/images/sakura-bg.jpg"
+}
 
 export default function VisualNovelPage() {
   const [currentSceneId, setCurrentSceneId] = useState(1)
   const [affection, setAffection] = useState(20)
+  const [sincerity, setSincerity] = useState(0) // 真心值
   const [isTextComplete, setIsTextComplete] = useState(false)
   const [showChoices, setShowChoices] = useState(false)
   
@@ -28,6 +47,9 @@ export default function VisualNovelPage() {
   
   const currentScene = storyScenes.find(s => s.id === currentSceneId) || storyScenes[0]
   const currentChapter = getChapterName(currentSceneId)
+  const currentAct = getActName(currentScene.act)
+  const mood = currentScene.mood || "warm"
+  const theme = moodThemes[mood]
   
   // 加载存档数据
   useEffect(() => {
@@ -41,7 +63,7 @@ export default function VisualNovelPage() {
     }
   }, [])
   
-  const handleChoice = (nextId: number, affectionChangeValue: number) => {
+  const handleChoice = (nextId: number, affectionChangeValue: number, sincerityChangeValue: number = 0) => {
     setShowChoices(false)
     
     if (affectionChangeValue > 0) {
@@ -50,7 +72,8 @@ export default function VisualNovelPage() {
       setTimeout(() => setShowAffectionPopup(false), 1500)
     }
     
-    setAffection(prev => Math.min(prev + affectionChangeValue, 100))
+    setAffection(prev => Math.max(0, Math.min(prev + affectionChangeValue, 100)))
+    setSincerity(prev => Math.max(0, Math.min(prev + sincerityChangeValue, 100)))
     setCurrentSceneId(nextId)
     setIsTextComplete(false)
   }
@@ -80,6 +103,7 @@ export default function VisualNovelPage() {
       id: slotId,
       sceneId: currentSceneId,
       affection: affection,
+      sincerity: sincerity,
       timestamp: new Date().toISOString(),
       chapterName: currentChapter
     }
@@ -96,6 +120,7 @@ export default function VisualNovelPage() {
     if (save) {
       setCurrentSceneId(save.sceneId)
       setAffection(save.affection)
+      setSincerity(save.sincerity)
       setIsTextComplete(false)
       setShowChoices(false)
       setSaveModalOpen(false)
@@ -112,6 +137,7 @@ export default function VisualNovelPage() {
   const handleReset = () => {
     setCurrentSceneId(1)
     setAffection(20)
+    setSincerity(0)
     setIsTextComplete(false)
     setShowChoices(false)
   }
@@ -128,56 +154,82 @@ export default function VisualNovelPage() {
   
   const choices = currentScene.choices?.map(choice => ({
     text: choice.text,
-    onClick: () => handleChoice(choice.nextId, choice.affectionChange)
+    isFated: choice.isFated,
+    onClick: () => handleChoice(choice.nextId, choice.affectionChange, choice.sincerityChange || 0)
   }))
+  
+  const bgImage = getBackgroundImage(currentSceneId, currentScene.background)
   
   return (
     <main className="relative min-h-screen w-full overflow-hidden">
-      {/* 背景图片区域 */}
-      <motion.div 
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 1 }}
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-        style={{
-          backgroundImage: `linear-gradient(to bottom, rgba(255,240,245,0.2), rgba(255,228,235,0.4)), url("/images/sakura-bg.jpg")`
-        }}
-      />
+      {/* 背景图片区域 - 带有氛围色调 */}
+      <AnimatePresence mode="wait">
+        <motion.div 
+          key={bgImage + mood}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.8 }}
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{
+            backgroundImage: `linear-gradient(to bottom, ${theme.overlay}, ${theme.overlayEnd}), url("${bgImage}")`
+          }}
+        />
+      </AnimatePresence>
       
-      {/* 樱花飘落效果 */}
-      <div className="absolute inset-0 pointer-events-none overflow-hidden">
-        {[...Array(15)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute animate-fall"
-            style={{
-              left: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 5}s`,
-              animationDuration: `${8 + Math.random() * 4}s`
-            }}
-          >
-            <Sparkles className="w-4 h-4 text-primary/40" />
-          </div>
-        ))}
-      </div>
+      {/* 天气效果 */}
+      <WeatherEffects weather={currentScene.weather} />
+      
+      {/* 樱花飘落效果（仅在温暖场景） */}
+      {mood === "warm" && (
+        <div className="absolute inset-0 pointer-events-none overflow-hidden z-5">
+          {[...Array(12)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute animate-fall"
+              style={{
+                left: `${Math.random() * 100}%`,
+                animationDelay: `${Math.random() * 5}s`,
+                animationDuration: `${8 + Math.random() * 4}s`
+              }}
+            >
+              <Sparkles className="w-4 h-4 text-primary/40" />
+            </div>
+          ))}
+        </div>
+      )}
       
       {/* 场景标题与章节名 */}
       <div className="absolute top-6 left-6 z-10 space-y-2">
         <motion.div 
+          key={currentAct}
           initial={{ x: -20, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
-          className="flex items-center gap-2 px-4 py-2 bg-card/70 backdrop-blur-sm border border-primary/20 rounded-full"
+          className={`flex items-center gap-2 px-4 py-2 backdrop-blur-sm rounded-full ${
+            mood === "warm" 
+              ? "bg-card/70 border border-primary/20" 
+              : "bg-slate-900/70 border border-slate-500/30"
+          }`}
         >
-          <Heart className="w-4 h-4 text-primary fill-primary/50" />
-          <span className="text-sm text-foreground/80">{currentScene.background}</span>
+          <Heart className={`w-4 h-4 ${mood === "warm" ? "text-primary fill-primary/50" : "text-slate-400 fill-slate-400/30"}`} />
+          <span className={`text-sm ${mood === "warm" ? "text-foreground/80" : "text-slate-300/80"}`}>
+            {currentScene.background}
+          </span>
         </motion.div>
         <motion.div
+          key={currentChapter}
           initial={{ x: -20, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ delay: 0.1 }}
-          className="px-4 py-1.5 bg-primary/20 backdrop-blur-sm border border-primary/30 rounded-full"
+          className={`px-4 py-1.5 backdrop-blur-sm rounded-full ${
+            mood === "warm"
+              ? "bg-primary/20 border border-primary/30"
+              : "bg-slate-800/50 border border-slate-500/30"
+          }`}
         >
-          <span className="text-xs text-primary">{currentChapter}</span>
+          <span className={`text-xs ${mood === "warm" ? "text-primary" : "text-slate-400"}`}>
+            {currentChapter}
+          </span>
         </motion.div>
       </div>
       
@@ -200,6 +252,7 @@ export default function VisualNovelPage() {
       <ChoiceButtons 
         choices={choices || []}
         isVisible={showChoices && isTextComplete}
+        mood={mood}
       />
       
       {/* 存档/读档弹窗 */}
@@ -217,33 +270,53 @@ export default function VisualNovelPage() {
       />
       
       {/* 角色立绘区域 */}
-      <div className="absolute bottom-48 left-1/2 -translate-x-1/2 w-full max-w-md h-96 flex items-end justify-center">
+      <div className="absolute bottom-56 left-1/2 -translate-x-1/2 w-full max-w-md h-80 flex items-end justify-center">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
           className="relative"
         >
-          <div className="w-48 h-72 rounded-full bg-gradient-to-t from-primary/10 to-transparent blur-2xl" />
+          <div className={`w-48 h-72 rounded-full blur-2xl ${
+            mood === "warm" 
+              ? "bg-gradient-to-t from-primary/10 to-transparent" 
+              : "bg-gradient-to-t from-slate-500/10 to-transparent"
+          }`} />
           <div className="absolute bottom-0 left-1/2 -translate-x-1/2 text-center">
-            <span className="text-xs text-muted-foreground/50">角色立绘区域</span>
+            <span className={`text-xs ${mood === "warm" ? "text-muted-foreground/50" : "text-slate-500/50"}`}>
+              角色立绘区域
+            </span>
           </div>
         </motion.div>
       </div>
       
       {/* 底部界面 */}
-      <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6 space-y-4">
-        {/* 好感度条 */}
+      <div className="absolute bottom-0 left-0 right-0 p-4 md:p-6 space-y-3">
+        {/* 数值条 */}
         <motion.div 
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.3 }}
-          className="max-w-2xl mx-auto"
+          className="max-w-2xl mx-auto space-y-2"
         >
           <AffectionBar 
             value={affection} 
-            characterName="小樱" 
-            className="bg-card/60 backdrop-blur-sm rounded-full px-4 py-2 border border-primary/20"
+            characterName="姐姐" 
+            mood={mood}
+            className={`backdrop-blur-sm rounded-full px-4 py-2 border ${
+              mood === "warm" 
+                ? "bg-card/60 border-primary/20" 
+                : "bg-slate-900/60 border-slate-500/30"
+            }`}
+          />
+          <SincerityBar 
+            value={sincerity}
+            mood={mood}
+            className={`backdrop-blur-sm rounded-full px-4 py-2 border ${
+              mood === "warm" 
+                ? "bg-card/60 border-amber-400/20" 
+                : "bg-slate-900/60 border-slate-500/30"
+            }`}
           />
         </motion.div>
         
@@ -259,6 +332,8 @@ export default function VisualNovelPage() {
             characterName={currentScene.character}
             text={currentScene.text}
             onTextComplete={handleTextComplete}
+            isMonologue={currentScene.isMonologue}
+            mood={mood}
           />
         </motion.div>
       </div>
