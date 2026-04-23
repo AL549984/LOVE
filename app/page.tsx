@@ -23,13 +23,21 @@ import {
 // 根据场景获取背景图片
 const getBackgroundImage = (sceneId: number, background: string) => {
   // 根据场景背景选择对应图片
-  if (background.includes("便利店")) return "/images/convenience-store.png"
-  if (background.includes("公寓") || background.includes("暴雨") || background.includes("房间")) return "/images/rainy-apartment.png"
-  if (background.includes("墓园") || background.includes("墓")) return "/images/cemetery.png"
-  if (background.includes("医院")) return "/images/rainy-apartment.png"
+  if (background.includes("便利店")) return "/images/convenience-store.jpg"
+  if (background.includes("公寓") || background.includes("暴雨") || background.includes("房间")) return "/images/rainy-apartment.jpg"
+  if (background.includes("墓园") || background.includes("墓")) return "/images/cemetery.jpg"
+  if (background.includes("医院")) return "/images/rainy-apartment.jpg"
   // 默认樱花背景
-  return "/images/sakura-bg.png"
+  return "/images/sakura-bg.jpg"
 }
+
+// 所有背景图片路径（用于预加载）
+const ALL_BG_IMAGES = [
+  "/images/convenience-store.jpg",
+  "/images/rainy-apartment.jpg",
+  "/images/cemetery.jpg",
+  "/images/sakura-bg.jpg",
+]
 
 export default function VisualNovelPage() {
   const [currentSceneId, setCurrentSceneId] = useState(1)
@@ -52,6 +60,14 @@ export default function VisualNovelPage() {
   const currentAct = getActName(currentScene.act)
   const mood = currentScene.mood || "warm"
   const theme = moodThemes[mood]
+  
+  // 预加载所有背景图片
+  useEffect(() => {
+    ALL_BG_IMAGES.forEach((src) => {
+      const img = new Image()
+      img.src = src
+    })
+  }, [])
   
   // 加载存档数据
   useEffect(() => {
