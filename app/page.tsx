@@ -20,15 +20,15 @@ import {
   type SaveData 
 } from "@/lib/story-config"
 
-// 根据场景获取背景图片
-const getBackgroundImage = (sceneId: number, background: string) => {
-  // 根据场景背景选择对应图片
-  if (background.includes("便利店")) return "/images/convenience-store.jpg"
-  if (background.includes("公寓") || background.includes("暴雨") || background.includes("房间")) return "/images/rainy-apartment.jpg"
-  if (background.includes("墓园") || background.includes("墓")) return "/images/cemetery.jpg"
-  if (background.includes("医院")) return "/images/rainy-apartment.jpg"
-  // 默认樱花背景
-  return "/images/sakura-bg.jpg"
+// 根据场景获取背景图片 —— 每幕使用统一的背景
+const getBackgroundImage = (act: number) => {
+  switch (act) {
+    case 1: return "/images/convenience-store.jpg"
+    case 2: return "/images/sakura-bg.jpg"
+    case 3: return "/images/rainy-apartment.jpg"
+    case 4: return "/images/cemetery.jpg"
+    default: return "/images/sakura-bg.jpg"
+  }
 }
 
 // 所有背景图片路径（用于预加载）
@@ -176,7 +176,7 @@ export default function VisualNovelPage() {
     onClick: () => handleChoice(choice.nextId, choice.affectionChange, choice.sincerityChange || 0)
   }))
   
-  const bgImage = getBackgroundImage(currentSceneId, currentScene.background)
+  const bgImage = getBackgroundImage(currentScene.act)
   
   return (
     <main className="relative min-h-screen w-full overflow-hidden">
